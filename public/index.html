@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DevSEO Tools</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>DevSEO Tools</h1>
+    <p>Free SEO analysis for any website</p>
+    
+    <div class="input-group">
+      <input type="url" id="url" placeholder="https://example.com" />
+      <button onclick="analyze()">Analyze</button>
+    </div>
+
+    <div id="results" class="results"></div>
+  </div>
+
+    <script>
+    async function analyze() {
+      const url = document.getElementById('url').value.trim();
+      if (!url) {
+        alert('Please enter a URL to analyze.');
+        return;
+      }
+
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<div class="loader"></div><p>Analyzing... This may take a moment.</p>';
+
+      try {
+        const response = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'An unknown error occurred.');
+        }
+
+        const { seo } = data;
+
+        const getStatus = (check, goodText = 'Good', badText = 'Review') => {
+            return `<span class="status ${check ? 'good' : 'bad'}">${check ? goodText : badText}</span>`;
+        };
+        
+        const createListItems = (items = [], isCode = false) => {
+            if (items.length === 0) return '<li>None found</li>';
+            return items.map(item => `<li${isCode ? ' class="code-li"' : ''}>${String(item).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join('');
+        };
+        
+        resultsDiv.innerHTML = `
+          <h2>Analysis for: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></h2>
+
+          <div class="card-grid">
+            <div class="card">
+              <h3>Title Tag</h3>
+              <p><strong>${seo.title?.value || 'Missing'}</strong></p>
+              <small>${seo.title?.length || 0} characters ${getStatus(seo.title?.length > 10 && seo.title?.length < 60)}</small>
+            </div>
+            
+            <div class="card">
+              <h3>Meta Description</h3>
+              <p>${seo.description?.value || 'Missing'}</p>
+              <small>${seo.description?.length || 0} characters ${getStatus(seo.description?.length > 70 && seo.description?.length < 160)}</small>
+            </div>
+
+            <div class="card">
+              <h3>Headings</h3>
+              <p><strong>H1 Tags (${seo.headings?.h1s?.length || 0}):</strong> ${getStatus(seo.headings?.h1s?.length === 1, '1 Found', `${seo.headings?.h1s?.length || 0} Found`)}</p>
+              <ul>${createListItems(seo.headings?.h1s)}</ul>
+              <p><strong>H2 Tags Found:</strong> ${seo.headings?.h2s?.length || 0}</p>
+              <ul>${createListItems(seo.headings?.h2s?.slice(0, 3))}</ul>
+              ${(seo.headings?.h2s?.length || 0) > 3 ? '<small>...and more</small>' : ''}
+            </div>
+
+            <div class="card">
+              <h3>Content</h3>
+              <p><strong>Word Count:</strong> ~${seo.wordCount || 0} words</p>
+              <small>${getStatus((seo.wordCount || 0) > 300, 'Sufficient', 'Very Thin')}</small>
+            </div>
+
+            <div class="card">
+                <h3>Schema & Structured Data</h3>
+                <p>Found ${seo.schemas?.length || 0} schema types ${getStatus(seo.schemas?.length > 0, 'Detected', 'Missing')}</p>
+                <ul>${createListItems(seo.schemas)}</ul>
+            </div>
+            
+            <div class="card">
+              <h3>Image SEO</h3>
+              <p><strong>Total Images:</strong> ${seo.images?.total || 0}</p>
+              <p><strong>Images Missing Alt Text:</strong> ${seo.images?.missingAltCount || 0} ${getStatus((seo.images?.missingAltCount) === 0)}</p>
+              ${ seo.images?.missingAltCount > 0 ? `
+                <small>Sample images missing alt text:</small>
+                <ul>${createListItems(seo.images?.missingAltImages.map(img => img.src), true)}</ul>
+              ` : '<small>All images seem to have alt text.</small>' }
+            </div>
+            
+            <div class="card">
+              <h3>Link Analysis</h3>
+              <p><strong>Internal Links:</strong> ${seo.links?.internal || 0}</p>
+              <p><strong>External Links:</strong> ${seo.links?.external || 0}</p>
+            </div>
+
+            <div class="card">
+              <h3>Technical SEO</h3>
+              <p><strong>Canonical URL:</strong></p>
+              <p class="code">${seo.technical?.canonical || 'Missing'}</p>
+              <p><strong>Meta Robots:</strong></p>
+              <p class="code">${seo.technical?.metaRobots || 'Not Set'}</p>
+            </div>
+            
+            <div class="card">
+                <h3>Social & Sharing</h3>
+                <p><strong>Open Graph:</strong> ${getStatus(seo.social?.openGraph?.title && seo.social?.openGraph?.image, 'Present', 'Incomplete')}</p>
+                <div class="social-preview">
+                    ${seo.social?.openGraph?.image ? `<img src="${seo.social.openGraph.image}" alt="OG Image" class="social-image"/>` : ''}
+                    <p class="social-title">${seo.social?.openGraph?.title || 'No OG title'}</p>
+                    <p class="social-desc">${seo.social?.openGraph?.description || 'No OG description'}</p>
+                </div>
+                <hr>
+                <p><strong>Twitter Card:</strong> ${getStatus(seo.social?.twitter?.card, 'Present', 'Missing')}</p>
+                <p class="code">Card type: ${seo.social?.twitter?.card || 'Not set'}</p>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        resultsDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+      }
+    }
+</script>
+</body>
+</html>
